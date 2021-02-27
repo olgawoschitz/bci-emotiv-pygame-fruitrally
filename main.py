@@ -1,7 +1,6 @@
 import pygame
 import logging
 import random
-import time
 
 from cortex import CortexClient
 from twisted.internet import reactor
@@ -11,6 +10,10 @@ from enum import Enum, IntEnum
 from game_config import GameConfig
 
 WHITE = (255, 255, 255)
+LIGHT_GREY = (240, 240, 240)
+DARK_BLUE = (14, 7, 112)
+
+START_GAME_EVENT = pygame.USEREVENT + 1
 
 
 class GameObjectManager:
@@ -18,38 +21,37 @@ class GameObjectManager:
     active_objects = []
     time_last_object = 0
     next_random_delay = 0
-    current_object_to_recall = 0
+    sequence_counter = 0
 
-    def __init__(self, max_objects=5):
+    def __init__(self, expected_sequence, max_objects=5):
+        self.expected_sequence = expected_sequence
         self.max_objects = max_objects
 
     def on_loop(self):
         time_passed = pygame.time.get_ticks() - self.time_last_object
         if time_passed > (1500 + self.next_random_delay):
             if len(self.active_objects) < self.max_objects:
-                self.active_objects.append(self.generate_new_object())
+                self.active_objects.append(self.generate_new_objext())
                 self.next_random_delay = random.randint(500, 1500)
                 self.time_last_object = pygame.time.get_ticks()
 
-    def generate_new_object(self):
+    def generate_new_objext(self):
         x_pos = random.choice(self.move_tracks)
         object_type = random.choice(list(GameObjectType))
         return GameObject(object_type, x_pos)
 
-    def update(self, player, level_sequence):
+    def update(self, player):
         to_delete = []
         for obj in self.active_objects:
             obj.update()
             if pygame.sprite.collide_rect(player, obj):
                 logging.info("Sprite collision with {0}".format(obj.object_type.name))
-                logging.info("Sprite collision with TYPE {0}".format(obj.object_type))
-                logging.info("CURRENT OBJ {0}".format(level_sequence[self.current_object_to_recall]))
-                if obj.object_type == level_sequence[self.current_object_to_recall]:
-                    logging.info("Sprite collision with {0}".format(obj.object_type.name))
-                    pygame.mixer.Sound("magic-chime.wav").play()
-                    self.current_object_to_recall = self.current_object_to_recall + 1
+                logging.info("Expected object: {0}".format(self.expected_sequence[self.sequence_counter].name))
+                if obj.object_type == self.expected_sequence[self.sequence_counter]:
+                    pygame.mixer.Sound("sound/magic-chime.wav").play()
+                    self.sequence_counter = self.sequence_counter + 1
                 else:
-                    pygame.mixer.Sound("fail-buzzer.wav").play()
+                    pygame.mixer.Sound("sound/fail-buzzer.wav").play()
                 to_delete.append(obj)
 
             if obj.is_at_bottom():
@@ -105,9 +107,8 @@ class GameObject(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, config):
+    def __init__(self):
         super(Player, self).__init__()
-        self.config = config
         self.image = pygame.image.load("img/Shopping_Cart.png")
         self.surface = pygame.Surface((141, 107))  # width and length -> same as the image
         self.rect = self.surface.get_rect(
@@ -134,7 +135,7 @@ class Player(pygame.sprite.Sprite):
 # overview about the signals on the screen
 class InputIndicator:
     def __init__(self):
-        self.font = pygame.font.Font('verdana.ttf', 28)
+        self.font = pygame.font.Font('verdana.ttf', 30)
         self.text = "0% L | R 0%"  # output on the screen starter
 
     def update(self, input_event):
@@ -150,8 +151,8 @@ class InputIndicator:
 
     def render(self, surface):
         text = self.font.render(self.text, True, WHITE)
-        textRect = text.get_rect(center=(900, 100))
-        surface.blit(text, textRect)
+        text_rect = text.get_rect(center=(900, 100))
+        surface.blit(text, text_rect)
 
 
 class Input(Enum):
@@ -225,36 +226,124 @@ class InputManager:
         return None
 
 
-class SurfaceManager:
-    def __init__(self, config):
-        self.screen = pygame.display.set_mode((config.screen_width, config.screen_height))
-        self.screen.fill((0, 0, 0))
-        pygame.display.update()
-
-    def set_game_background(self):
+class GameScreen:
+    def __init__(self):
         game_surface = pygame.Surface((750, 750))
-        background = pygame.image.load("img/background.png").convert(game_surface)
-        self.screen.blit(background, (9, 9))
+        self.background = pygame.image.load("img/background.png").convert(game_surface)
 
         game_status_surface = pygame.Surface((750, 250))
-        game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
-        self.screen.blit(game_status_background, (770, 9))
-        self.draw_lines(background)
-        pygame.display.update()
+        self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
 
-    def draw_lines(self, game_background):
-        pygame.draw.line(game_background, WHITE, (187, 0), (187, 900),
-                         3)  # line(surface, color, start_pos, end_pos, width) -> Rect
-        pygame.draw.line(game_background, WHITE, (375, 0), (375, 900), 3)
-        pygame.draw.line(game_background, WHITE, (562, 0), (562, 900), 3)
-        pygame.display.update()
+    def render(self, screen):
+        screen.blit(self.background, (9, 9))
+        screen.blit(self.game_status_background, (770, 9))
+        self.draw_lines(self.background)
 
-    def set_menu_background(self):
-        menu_surface = pygame.Surface((0, 0))
-        menu_background = pygame.image.load("img/background_menu.png").convert(menu_surface)
-        self.screen.blit(menu_background, (0, 0))
-        pygame.display.update()
+    def draw_lines(self, background):
+        # line(surface, color, start_pos, end_pos, width) -> Rect
+        pygame.draw.line(background, WHITE, (187, 0), (187, 900), 3)
+        pygame.draw.line(background, WHITE, (375, 0), (375, 900), 3)
+        pygame.draw.line(background, WHITE, (562, 0), (562, 900), 3)
 
+
+class MenuScreen:
+    current_page = 0
+    is_countdown = False
+    time_countdown_start = 0
+    countdown_in_seconds = 5
+    title = ""
+    command = ""
+    text = ""
+    item1 = ""
+    item2 = ""
+    item3 = ""
+
+
+    def __init__(self):
+        self.font_title = pygame.font.Font('verdana.ttf', 45)
+        self.font_text = pygame.font.Font('verdana.ttf', 30)
+        self.font_command = pygame.font.Font('verdana.ttf', 36)
+
+        menu_surface = pygame.Surface((750, 750))
+        menu_background = pygame.image.load("img/menu1.png").convert(menu_surface)
+        menu_surface.fill((220, 220, 220))
+        self.background = menu_background
+
+    def update(self, input_event, expected_sequence):
+        if not self.is_countdown:
+            if input_event:
+                if input_event[0] == Input.RIGHT:
+                    self.current_page += 1
+
+            if self.current_page == 1:
+                menu_surface = pygame.Surface((750, 750))
+                menu_background = pygame.image.load("img/menu2.png").convert(menu_surface)
+                menu_surface.fill((220, 220, 220))
+                self.background = menu_background
+
+            elif self.current_page == 2:
+                menu_surface = pygame.Surface((750, 750))
+                menu_background = pygame.image.load("img/menu3.png").convert(menu_surface)
+                menu_surface.fill((220, 220, 220))
+                self.background = menu_background
+
+                self.is_countdown = True
+                self.time_countdown_start = pygame.time.get_ticks()
+        else:
+            time_passed = pygame.time.get_ticks() - self.time_countdown_start
+            seconds_left = int(self.countdown_in_seconds - (time_passed / 1000))
+
+            output = []
+            for figure in expected_sequence:
+                if GameObjectType(figure) == 1:
+                    output.append("Apple")
+                elif GameObjectType(figure) == 2:
+                    output.append("Banana")
+                elif GameObjectType(figure) == 3:
+                    output.append("Grapes")
+                elif GameObjectType(figure) == 4:
+                    output.append("Lemon")
+                elif GameObjectType(figure) == 5:
+                    output.append("Orange")
+                elif GameObjectType(figure) == 6:
+                    output.append("Pineapple")
+
+            self.item1 = "{0}".format(output[0])
+            self.item2 = "{0}".format(output[1])
+            self.item3 = "{0}".format(output[2])
+
+            self.command = "{0} seconds".format(seconds_left)
+
+            if seconds_left <= 0:
+                event = pygame.event.Event(START_GAME_EVENT)
+                pygame.event.post(event)
+
+    def render(self, screen):
+        screen.blit(self.background, (9, 9))
+
+        title_text = self.font_title.render(self.title, True, WHITE)
+        content_text = self.font_command.render(self.command, True, DARK_BLUE)
+        text_text = self.font_text.render(self.text, True, LIGHT_GREY)
+
+        item1_text = self.font_text.render(self.item1, True, DARK_BLUE)
+        item2_text = self.font_text.render(self.item2, True, DARK_BLUE)
+        item3_text = self.font_text.render(self.item3, True, DARK_BLUE)
+
+        title_rect = title_text.get_rect(center=(250, 100))
+        text_rect = text_text.get_rect(center=(375, 200))
+        content_rect = content_text.get_rect(center=(375, 575))
+
+        item1_rect = item1_text.get_rect(center=(500, 250))
+        item2_rect = item2_text.get_rect(center=(500, 300))
+        item3_rect = item3_text.get_rect(center=(500, 350))
+
+        screen.blit(title_text, title_rect)
+        screen.blit(content_text, content_rect)
+        screen.blit(text_text, text_rect)
+
+        screen.blit(item1_text, item1_rect)
+        screen.blit(item2_text, item2_rect)
+        screen.blit(item3_text, item3_rect)
 
 class Game:
     running = False
@@ -263,80 +352,80 @@ class Game:
 
     def __init__(self, config):
         self.config = config
-        self.input_manager = InputManager(self.config)  # instance of InputManager
+        self.input_manager = InputManager(config)  # instance of InputManager
         self.clock = pygame.time.Clock()  # for fps and to calculate how long does the game is running
-        self.surface = SurfaceManager(self.config)
-        pygame.font.init()
-        pygame.init()
 
     def start(self):
+        pygame.init()
+        pygame.font.init()
+
         pygame.display.set_caption("My game")  # set the title of the window
-        object_manager = GameObjectManager()
+
+        screen = pygame.display.set_mode((self.config.screen_width, self.config.screen_height))
+
+        game_screen = GameScreen()
+        menu_screen = MenuScreen()
 
         self.input_manager.init()  # non blocking operation
+
         running = True
+        in_menu = True
 
-        # game indicators - input_indicator and player - for future development
+        expected_sequence = random.sample(list(GameObjectType), 3)
+        logging.info("expected_sequence: {0}".format(expected_sequence))
+
+        object_manager = GameObjectManager(expected_sequence)
         input_indicator = InputIndicator()
-        player = Player(self.config)
+        player = Player()
 
-        game_objects = [GameObjectType(1), GameObjectType(2), GameObjectType(3),
-                        GameObjectType(4), GameObjectType(5), GameObjectType(6)]
-        level_sequence = random.sample(game_objects, 3)
-        logging.info(
-            "objects_to_remember {0}, {1}, {2},".format(level_sequence[0], level_sequence[1], level_sequence[2]))
         logging.info("game started")
 
-        self.surface.set_menu_background()
-        pygame.display.update()
-
-        pygame.mixer.music.load("GameSong.wav")
+        pygame.mixer.music.load("sound/GameSong.wav")
         pygame.mixer.music.play(-1, fade_ms=1000)
         pygame.mixer.music.set_volume(0.5)
-        start_menu = True
 
         while running:
             events = pygame.event.get()
+            input_event = self.input_manager.on_loop(events)
+
+            if not in_menu:
+                object_manager.on_loop()
+
+            if input_event:
+                logging.info("event from input_manager: {0}".format(input_event))
+
             for event in events:
                 if event.type == pygame.QUIT:
                     self.input_manager.close()
                     running = False
-            #logging.info("EVENT AND K_RIGHT: {0}, {1}".format(event.type, pygame.K_RIGHT))
+                if event.type == START_GAME_EVENT:
+                    in_menu = False
 
-            if event.type == 768 and start_menu:
-                start_menu = False
-                input_event = self.input_manager.on_loop(events)
-
-                if input_event:
-                    logging.info("event from input_manager: {0}".format(input_event))
-
-                self.surface.screen.fill((0, 0, 0))
-                self.surface.set_game_background()
-                pygame.display.update()
-
-                object_manager.on_loop()
-
-                # update game objects
+            # update objects
+            if in_menu:
+                menu_screen.update(input_event, expected_sequence)
+            else:
                 input_indicator.update(input_event)
                 player.update(input_event)
-                object_manager.update(player, level_sequence)
+                object_manager.update(player)
 
-                # render game objects
-                input_indicator.render(self.surface.screen)
-                player.render(self.surface.screen)
-                object_manager.render(self.surface.screen)
+            # render objects
+            screen.fill((0, 0, 0))
 
-                if object_manager.current_object_to_recall == 1:
-                    # self.surface.screen.blit(self.surface.menu_background, (0, 0))
+            if in_menu:
+                menu_screen.render(screen)
+            else:
+                game_screen.render(screen)
+                input_indicator.render(screen)
+                player.render(screen)
+                object_manager.render(screen)
 
-                    pygame.display.update()
+            # game update
+            pygame.display.update()
+            # logging.debug("fps: {0}".format(self.clock.get_fps()))
+            self.clock.tick(self.fps)
 
-                # game update
-                pygame.display.update()
-                # logging.debug("fps: {0}".format(self.clock.get_fps()))
-                self.clock.tick(self.fps)
-
-        yield  # for concurrency in coop  - yield sequence generator - "manual" decision for loop - 60 fps - 60 times
+            yield  # for concurrency in coop  - yield sequence generator - "manual" decision for loop - 60 fps - 60 times
 
         reactor.stop()
 
