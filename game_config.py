@@ -1,4 +1,4 @@
-class GameConfig:
+class UserCredentials:
     """
     python class for user credentials
     """
