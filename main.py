@@ -27,6 +27,8 @@ SCORE_CHANGE_EVENT = pygame.USEREVENT + 3
 
 MIN_SIGNAL_WEIGHT = 0.8
 
+SCORE_TIMER = "00:00:00"
+
 
 class GameObjectManager:
     move_tracks = [94, 281, 469, 656]
@@ -343,12 +345,14 @@ class GameScreen:
 class MenuScreen:
     current_page = 0
     is_countdown = False
+    is_end_of_game = False
     time_countdown_start = 0
     countdown_in_seconds = 5
     output_images = []
     command = ""
     power_of_signal = "Signal power:"
     score = ""
+    score_time = ""
 
     def __init__(self):
         self.font_text = pygame.font.Font('verdana.ttf', 30)
@@ -359,7 +363,6 @@ class MenuScreen:
         self.background = menu_background
         game_status_surface = pygame.Surface((750, 250))
         self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
-
 
     def update(self, input_event, game_state):
         if not self.is_countdown:
@@ -409,12 +412,17 @@ class MenuScreen:
                 event = pygame.event.Event(START_GAME_EVENT)
                 pygame.event.post(event)
 
-    def on_end_game(self):
+    def on_end_game(self, game_state):
         self.current_page = 1
         self.is_countdown = False
+        self.is_end_of_game = True
         self.command = ""
-        self.score = "Previous score:"
         self.output_images = []
+
+        self.score = "Previous score:"
+        self.score_time = pygame.time.get_ticks() - game_state.time_game_started
+        self.score_time += (game_state.penalties * 5000)
+        self.score_time /= 1000
 
     def render(self, screen):
         screen.blit(self.background, (9, 9))
@@ -438,6 +446,12 @@ class MenuScreen:
         score_text = self.font_text.render(self.score, True, WHITE)
         score_rect = score_text.get_rect(center=(890, 500))
         screen.blit(score_text, score_rect)
+
+        if self.is_end_of_game:
+            score_time_text = datetime.fromtimestamp(self.score_time).strftime('%M:%S')
+            text_timer = self.font_text.render(score_time_text, True, WHITE)
+            text_rect_timer = text_timer.get_rect(center=(890, 550))
+            screen.blit(text_timer, text_rect_timer)
 
 
 class GameState:
@@ -522,7 +536,7 @@ class Game:
                     game_state.on_score_change(event)
                 elif event.type == END_GAME_EVENT:
                     in_menu = True
-                    menu_screen.on_end_game()
+                    menu_screen.on_end_game(game_state)
                     logging.info("game ended")
 
             # update
