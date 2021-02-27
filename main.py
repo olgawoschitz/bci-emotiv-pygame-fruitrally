@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pygame
 import logging
 import random
@@ -7,13 +9,23 @@ from twisted.internet import reactor
 from twisted.internet.task import Cooperator
 from enum import Enum, IntEnum
 
-from game_config import GameConfig
+from user_credentials import UserCredentials
 
+BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+ORANGE = (255, 140, 0)
+GREEN = (0, 128, 0)
+LIGHT_GREEN = (50, 205, 50)
+YELLOW = (255, 255, 0)
 LIGHT_GREY = (240, 240, 240)
 DARK_BLUE = (14, 7, 112)
 
 START_GAME_EVENT = pygame.USEREVENT + 1
+END_GAME_EVENT = pygame.USEREVENT + 2
+SCORE_CHANGE_EVENT = pygame.USEREVENT + 3
+
+MIN_SIGNAL_WEIGHT = 0.8
 
 
 class GameObjectManager:
@@ -42,16 +54,29 @@ class GameObjectManager:
 
     def update(self, player):
         to_delete = []
+
         for obj in self.active_objects:
             obj.update()
+
             if pygame.sprite.collide_rect(player, obj):
                 logging.info("Sprite collision with {0}".format(obj.object_type.name))
                 logging.info("Expected object: {0}".format(self.expected_sequence[self.sequence_counter].name))
+
+                penalty = 0
                 if obj.object_type == self.expected_sequence[self.sequence_counter]:
                     pygame.mixer.Sound("sound/magic-chime.wav").play()
                     self.sequence_counter = self.sequence_counter + 1
+                    if self.sequence_counter >= len(self.expected_sequence):
+                        event = pygame.event.Event(END_GAME_EVENT)
+                        pygame.event.post(event)
                 else:
                     pygame.mixer.Sound("sound/fail-buzzer.wav").play()
+                    penalty += 1
+                event = pygame.event.Event(SCORE_CHANGE_EVENT, {
+                    "penalty": penalty,
+                    "matched_objects":  self.expected_sequence[:self.sequence_counter]
+                })
+                pygame.event.post(event)
                 to_delete.append(obj)
 
             if obj.is_at_bottom():
@@ -117,7 +142,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, input_event):
         if input_event:
-            if input_event[1] > 0.8:  # power of the signal is the minimum for acceptance
+            if input_event[1] > MIN_SIGNAL_WEIGHT:  # power of the signal is the minimum for acceptance
                 if input_event[0] == Input.RIGHT:
                     self.rect.move_ip(190, 0)  # step size in pics
                 elif input_event[0] == Input.LEFT:
@@ -134,25 +159,86 @@ class Player(pygame.sprite.Sprite):
 
 # overview about the signals on the screen
 class InputIndicator:
+    left = 0.0
+    right = 0.0
+
     def __init__(self):
-        self.font = pygame.font.Font('verdana.ttf', 30)
-        self.text = "0% L | R 0%"  # output on the screen starter
+        self.font = pygame.font.Font('verdana.ttf', 14)
 
     def update(self, input_event):
-        left = 0.0
-        right = 0.0
-
         if input_event:
+            self.left = 0.0
+            self.right = 0.0
+
             if input_event[0] == Input.RIGHT:
-                right = input_event[1]
+                self.right = input_event[1]
             elif input_event[0] == Input.LEFT:
-                left = input_event[1]
-            self.text = "{0}% L | R {1}%".format(round(left, 2), round(right, 2))  # update if input
+                self.left = input_event[1]
 
     def render(self, surface):
-        text = self.font.render(self.text, True, WHITE)
-        text_rect = text.get_rect(center=(900, 100))
-        surface.blit(text, text_rect)
+        max_length = 115
+        width_right = max_length * self.right
+        width_left = max_length * self.left
+        x_left = 780 + (max_length - width_left)
+
+        # left
+        pygame.draw.rect(surface, LIGHT_GREY, (780, 50, 115, 50))
+        pygame.draw.rect(surface, LIGHT_GREEN, (x_left, 50, width_left, 50))
+
+        # right
+        pygame.draw.rect(surface, LIGHT_GREY, (895, 50, 115, 50))
+        pygame.draw.rect(surface, LIGHT_GREEN, (895, 50, width_right, 50))
+
+        pygame.draw.rect(surface, BLACK, (780, 50, 230, 50), 3)
+        pygame.draw.line(surface, BLACK, (895, 50), (895, 100), 3)
+
+        limit_left = 895 - (max_length * MIN_SIGNAL_WEIGHT)
+        limit_right = 895 + (max_length * MIN_SIGNAL_WEIGHT)
+        pygame.draw.line(surface, ORANGE, (limit_left, 45), (limit_left, 105), 3)
+        pygame.draw.line(surface, ORANGE, (limit_right, 45), (limit_right, 105), 3)
+
+        text_left = self.font.render("Left", True, WHITE)
+        text_right = self.font.render("Right", True, WHITE)
+
+        surface.blit(text_left, text_left.get_rect(center=(800, 120)))
+        surface.blit(text_right, text_left.get_rect(center=(980, 120)))
+
+
+class ScoreIndicator:
+    def __init__(self):
+        self.font = pygame.font.Font('verdana.ttf', 30)
+        self.timer_text = "00:00:00"
+        self.matched_text = ""
+        self.output_images = []
+
+    def update(self, game_state):
+        game_time = pygame.time.get_ticks() - game_state.time_game_started
+        game_time += (game_state.penalties * 5000)
+
+        self.timer_text = datetime.fromtimestamp(game_time / 1000).strftime('%M:%S')
+
+        self.output_images = []
+        for figure in game_state.matched_sequence:
+            figure_numb = GameObjectType[figure.name]
+            image = GameObject.images[figure_numb - 1]
+            self.output_images.append(image)
+
+    def render(self, surface):
+        text_timer = self.font.render(self.timer_text, True, WHITE)
+        text_rect_timer = text_timer.get_rect(center=(890, 550))
+        surface.blit(text_timer, text_rect_timer)
+
+        img_surface = pygame.Surface((100, 100))
+
+        if len(self.output_images) == 1:
+            rect1 = img_surface.get_rect(center=(900, 300))
+            surface.blit(self.output_images[0], rect1)
+
+        elif len(self.output_images) == 2:
+            rect1 = img_surface.get_rect(center=(900, 300))
+            rect2 = img_surface.get_rect(center=(900, 400))
+            surface.blit(self.output_images[0], rect1)
+            surface.blit(self.output_images[1], rect2)
 
 
 class Input(Enum):
@@ -169,18 +255,12 @@ class InputManager:
 
     use_test_server = False
 
-    def __init__(self, config):
-        self.config = config
-
     def init(self):  # similar to client test to decide which server to use
         receiver = self  # define receiver as a pointer to InputManager  -> needs as an argument CortexClient
         if self.use_test_server:
-            self.cortex_connection = CortexClient(self.config.credentials, receiver, url="ws://localhost:8765")
+            self.cortex_connection = CortexClient(UserCredentials.credentials, receiver, url="ws://localhost:8765")
         else:
-            self.cortex_connection = CortexClient(self.config.credentials, receiver)
-
-    def close(self):
-        pass
+            self.cortex_connection = CortexClient(UserCredentials.credentials, receiver)
 
     def on_receive_cortex_data(self, data):
         logging.debug("received cortex data: " + str(data))
@@ -228,16 +308,30 @@ class InputManager:
 
 class GameScreen:
     def __init__(self):
+        self.font_text = pygame.font.Font('verdana.ttf', 30)
+
         game_surface = pygame.Surface((750, 750))
         self.background = pygame.image.load("img/background.png").convert(game_surface)
 
         game_status_surface = pygame.Surface((750, 250))
         self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
 
+        self.list_text = self.font_text.render("Shopping list:", True, WHITE)
+        self.list_rect = self.list_text.get_rect(center=(890, 200))
+
+        self.counter_text = self.font_text.render("Game timer:", True, WHITE)
+        self.content_rect = self.counter_text.get_rect(center=(890, 500))
+
+        self.power_of_signal_text = self.font_text.render("Signal power:", True, WHITE)
+        self.power_of_signal_rect = self.power_of_signal_text.get_rect(center=(890, 25))
+
     def render(self, screen):
         screen.blit(self.background, (9, 9))
         screen.blit(self.game_status_background, (770, 9))
-        self.draw_lines(self.background)
+        screen.blit(self.list_text, self.list_rect)
+        screen.blit(self.counter_text, self.content_rect)
+        screen.blit(self.power_of_signal_text, self.power_of_signal_rect)
+        #self.draw_lines(self.background)
 
     def draw_lines(self, background):
         # line(surface, color, start_pos, end_pos, width) -> Rect
@@ -251,66 +345,63 @@ class MenuScreen:
     is_countdown = False
     time_countdown_start = 0
     countdown_in_seconds = 5
-    title = ""
+    output_images = []
     command = ""
-    text = ""
-    item1 = ""
-    item2 = ""
-    item3 = ""
-
+    power_of_signal = "Signal power:"
+    score = ""
 
     def __init__(self):
-        self.font_title = pygame.font.Font('verdana.ttf', 45)
         self.font_text = pygame.font.Font('verdana.ttf', 30)
         self.font_command = pygame.font.Font('verdana.ttf', 36)
 
         menu_surface = pygame.Surface((750, 750))
         menu_background = pygame.image.load("img/menu1.png").convert(menu_surface)
-        menu_surface.fill((220, 220, 220))
         self.background = menu_background
+        game_status_surface = pygame.Surface((750, 250))
+        self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
 
-    def update(self, input_event, expected_sequence):
+
+    def update(self, input_event, game_state):
         if not self.is_countdown:
             if input_event:
-                if input_event[0] == Input.RIGHT:
-                    self.current_page += 1
+                if input_event[1] > MIN_SIGNAL_WEIGHT:
+                    if self.current_page == 1:
+                        if input_event[0] == Input.LEFT:
+                            self.current_page += 1
+                    else:
+                        if input_event[0] == Input.RIGHT:
+                            self.current_page += 1
 
             if self.current_page == 1:
                 menu_surface = pygame.Surface((750, 750))
                 menu_background = pygame.image.load("img/menu2.png").convert(menu_surface)
-                menu_surface.fill((220, 220, 220))
                 self.background = menu_background
 
+                game_status_surface = pygame.Surface((750, 250))
+                self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
+
             elif self.current_page == 2:
-                menu_surface = pygame.Surface((750, 750))
-                menu_background = pygame.image.load("img/menu3.png").convert(menu_surface)
-                menu_surface.fill((220, 220, 220))
-                self.background = menu_background
+                menu2_surface = pygame.Surface((750, 750))
+                menu2_background = pygame.image.load("img/menu3.png").convert(menu2_surface)
+                self.background = menu2_background
+
+                game_status_surface = pygame.Surface((750, 250))
+                self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
+
+                game_state.new_expected_sequence()
 
                 self.is_countdown = True
                 self.time_countdown_start = pygame.time.get_ticks()
+
         else:
             time_passed = pygame.time.get_ticks() - self.time_countdown_start
             seconds_left = int(self.countdown_in_seconds - (time_passed / 1000))
 
-            output = []
-            for figure in expected_sequence:
-                if GameObjectType(figure) == 1:
-                    output.append("Apple")
-                elif GameObjectType(figure) == 2:
-                    output.append("Banana")
-                elif GameObjectType(figure) == 3:
-                    output.append("Grapes")
-                elif GameObjectType(figure) == 4:
-                    output.append("Lemon")
-                elif GameObjectType(figure) == 5:
-                    output.append("Orange")
-                elif GameObjectType(figure) == 6:
-                    output.append("Pineapple")
-
-            self.item1 = "{0}".format(output[0])
-            self.item2 = "{0}".format(output[1])
-            self.item3 = "{0}".format(output[2])
+            self.output_images = []
+            for figure in game_state.expected_sequence:
+                image_pos = figure - 1
+                image = GameObject.images[image_pos]
+                self.output_images.append(image)
 
             self.command = "{0} seconds".format(seconds_left)
 
@@ -318,41 +409,64 @@ class MenuScreen:
                 event = pygame.event.Event(START_GAME_EVENT)
                 pygame.event.post(event)
 
+    def on_end_game(self):
+        self.current_page = 1
+        self.is_countdown = False
+        self.command = ""
+        self.score = "Previous score:"
+        self.output_images = []
+
     def render(self, screen):
         screen.blit(self.background, (9, 9))
+        screen.blit(self.game_status_background, (770, 9))
 
-        title_text = self.font_title.render(self.title, True, WHITE)
+        i = 250
+        for img in self.output_images:
+            surface = pygame.Surface((100, 100))
+            rect = surface.get_rect(center=(350, i))
+            screen.blit(img, rect)
+            i = i + 100
+
         content_text = self.font_command.render(self.command, True, DARK_BLUE)
-        text_text = self.font_text.render(self.text, True, LIGHT_GREY)
-
-        item1_text = self.font_text.render(self.item1, True, DARK_BLUE)
-        item2_text = self.font_text.render(self.item2, True, DARK_BLUE)
-        item3_text = self.font_text.render(self.item3, True, DARK_BLUE)
-
-        title_rect = title_text.get_rect(center=(250, 100))
-        text_rect = text_text.get_rect(center=(375, 200))
         content_rect = content_text.get_rect(center=(375, 575))
-
-        item1_rect = item1_text.get_rect(center=(500, 250))
-        item2_rect = item2_text.get_rect(center=(500, 300))
-        item3_rect = item3_text.get_rect(center=(500, 350))
-
-        screen.blit(title_text, title_rect)
         screen.blit(content_text, content_rect)
-        screen.blit(text_text, text_rect)
 
-        screen.blit(item1_text, item1_rect)
-        screen.blit(item2_text, item2_rect)
-        screen.blit(item3_text, item3_rect)
+        power_of_signal_text = self.font_text.render(self.power_of_signal, True, WHITE)
+        power_of_signal_rect = power_of_signal_text.get_rect(center=(890, 25))
+        screen.blit(power_of_signal_text, power_of_signal_rect)
+
+        score_text = self.font_text.render(self.score, True, WHITE)
+        score_rect = score_text.get_rect(center=(890, 500))
+        screen.blit(score_text, score_rect)
+
+
+class GameState:
+    matched_sequence = []
+    time_game_started = 0
+    penalties = 0
+    expected_sequence = []
+
+    def on_start_game(self):
+        self.time_game_started = pygame.time.get_ticks()
+        self.penalties = 0
+        self.matched_sequence = []
+
+    def new_expected_sequence(self):
+        self.expected_sequence = random.sample(list(GameObjectType), 3)
+        logging.info("expected_sequence: {0}".format(self.expected_sequence))
+        return self.expected_sequence
+
+    def on_score_change(self, event):
+        self.matched_sequence = event.matched_objects
+        self.penalties += event.penalty
+
 
 class Game:
     running = False
     fps = 60
-    SPEED = 1
 
-    def __init__(self, config):
-        self.config = config
-        self.input_manager = InputManager(config)  # instance of InputManager
+    def __init__(self):
+        self.input_manager = InputManager()  # instance of InputManager
         self.clock = pygame.time.Clock()  # for fps and to calculate how long does the game is running
 
     def start(self):
@@ -361,7 +475,7 @@ class Game:
 
         pygame.display.set_caption("My game")  # set the title of the window
 
-        screen = pygame.display.set_mode((self.config.screen_width, self.config.screen_height))
+        screen = pygame.display.set_mode((1024, 768))
 
         game_screen = GameScreen()
         menu_screen = MenuScreen()
@@ -371,14 +485,12 @@ class Game:
         running = True
         in_menu = True
 
-        expected_sequence = random.sample(list(GameObjectType), 3)
-        logging.info("expected_sequence: {0}".format(expected_sequence))
-
-        object_manager = GameObjectManager(expected_sequence)
         input_indicator = InputIndicator()
-        player = Player()
+        game_state = GameState()
 
-        logging.info("game started")
+        object_manager = None
+        score_indicator = None
+        player = None
 
         pygame.mixer.music.load("sound/GameSong.wav")
         pygame.mixer.music.play(-1, fade_ms=1000)
@@ -396,29 +508,45 @@ class Game:
 
             for event in events:
                 if event.type == pygame.QUIT:
-                    self.input_manager.close()
                     running = False
-                if event.type == START_GAME_EVENT:
-                    in_menu = False
+                elif event.type == START_GAME_EVENT:
+                    game_state.on_start_game()
 
-            # update objects
+                    object_manager = GameObjectManager(game_state.expected_sequence)
+                    score_indicator = ScoreIndicator()
+                    player = Player()
+
+                    in_menu = False
+                    logging.info("game started")
+                elif event.type == SCORE_CHANGE_EVENT:
+                    game_state.on_score_change(event)
+                elif event.type == END_GAME_EVENT:
+                    in_menu = True
+                    menu_screen.on_end_game()
+                    logging.info("game ended")
+
+            # update
+            input_indicator.update(input_event)
+
             if in_menu:
-                menu_screen.update(input_event, expected_sequence)
+                menu_screen.update(input_event, game_state)
             else:
-                input_indicator.update(input_event)
+                score_indicator.update(game_state)
                 player.update(input_event)
                 object_manager.update(player)
 
-            # render objects
-            screen.fill((0, 0, 0))
+            # render
+            screen.fill(BLACK)
 
             if in_menu:
                 menu_screen.render(screen)
             else:
                 game_screen.render(screen)
-                input_indicator.render(screen)
+                score_indicator.render(screen)
                 player.render(screen)
                 object_manager.render(screen)
+
+            input_indicator.render(screen)
 
             # game update
             pygame.display.update()
@@ -433,9 +561,7 @@ class Game:
 def main():
     logging.basicConfig(level=logging.DEBUG)
 
-    config = GameConfig(1024, 768)
-    game = Game(config)
-
+    game = Game()
     coop = Cooperator()
     coop.coiterate(game.start())
     reactor.run()
