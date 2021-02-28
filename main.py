@@ -25,9 +25,6 @@ START_GAME_EVENT = pygame.USEREVENT + 1
 END_GAME_EVENT = pygame.USEREVENT + 2
 SCORE_CHANGE_EVENT = pygame.USEREVENT + 3
 
-MIN_SIGNAL_WEIGHT = 0.8 # min signal power for acceptance
-SCORE_TIMER = "00:00:00"
-
 
 class GameObjectManager:
     """
@@ -106,7 +103,8 @@ class GameObjectManager:
                 to_delete.append(obj)
 
         for obj in to_delete:
-            self.active_objects.remove(obj)
+            if obj in self.active_objects:
+                self.active_objects.remove(obj)
 
     def render(self, screen):
         """
@@ -118,7 +116,8 @@ class GameObjectManager:
 
 
 class GameObjectType(IntEnum):
-    """ Class from generic enumeration.
+    """
+    Class from generic enumeration.
     To define enumerations for game objects
     """
     APPLE = 1
@@ -185,6 +184,8 @@ class Player(pygame.sprite.Sprite):
     """
     Class to manage and update player moves
     """
+    time_last_move = 0
+
     def __init__(self):
         """
         Defines player
@@ -196,22 +197,31 @@ class Player(pygame.sprite.Sprite):
             center=(100, 660)
         )
 
-    def update(self, input_event):
+    def update(self, input_event, game_state):
         """
         Manage input signals and defines the move frame and steps
-        :param input_event:
+        :param input_event: current input
+        :param game_state: current game state
         """
-        if input_event:
-            if input_event[1] > MIN_SIGNAL_WEIGHT:  # power of the signal is the minimum for acceptance
-                if input_event[0] == Input.RIGHT:
-                    self.rect.move_ip(190, 0)  # step size in pics
-                elif input_event[0] == Input.LEFT:
+        time_passed = pygame.time.get_ticks() - self.time_last_move
+        moved = False
+
+        if time_passed > 1000:
+            if input_event:
+                if input_event[0] == Input.RIGHT and input_event[1] > game_state.min_signal_weight_right:
+                    self.rect.move_ip(190, 0)
+                    moved = True
+                elif input_event[0] == Input.LEFT and input_event[1] > game_state.min_signal_weight_left:
                     self.rect.move_ip(-190, 0)
-        # dealing with the frame and movements
-        if self.rect.left < 30:
-            self.rect.left = 30
-        if self.rect.right > 740:
-            self.rect.right = 740
+                    moved = True
+            # dealing with the frame and movements
+            if self.rect.left < 30:
+                self.rect.left = 30
+            if self.rect.right > 740:
+                self.rect.right = 740
+
+        if moved:
+            self.time_last_move = pygame.time.get_ticks()
 
     def render(self, surface):
         """
@@ -228,16 +238,20 @@ class InputIndicator:
     left = 0.0
     right = 0.0
 
+    min_left = 0.8
+    min_right = 0.8
+
     def __init__(self):
         """
         For Font initialization
         """
         self.font = pygame.font.Font('verdana.ttf', 14)
 
-    def update(self, input_event):
+    def update(self, input_event, game_state):
         """
         Function for updating and showing signals power on the game status
         :param input_event:
+        :param game_state:
         """
         if input_event:
             self.left = 0.0
@@ -247,6 +261,11 @@ class InputIndicator:
                 self.right = input_event[1]
             elif input_event[0] == Input.LEFT:
                 self.left = input_event[1]
+
+        if game_state.min_signal_weight_right != self.min_right:
+            self.min_right = game_state.min_signal_weight_right
+        if game_state.min_signal_weight_left != self.min_left:
+            self.min_left = game_state.min_signal_weight_left
 
     def render(self, surface):
         """
@@ -267,8 +286,8 @@ class InputIndicator:
         pygame.draw.rect(surface, BLACK, (780, 50, 230, 50), 3)
         pygame.draw.line(surface, BLACK, (895, 50), (895, 100), 3)
 
-        limit_left = 895 - (max_length * MIN_SIGNAL_WEIGHT)
-        limit_right = 895 + (max_length * MIN_SIGNAL_WEIGHT)
+        limit_left = 895 - (max_length * self.min_left)
+        limit_right = 895 + (max_length * self.min_right)
         pygame.draw.line(surface, ORANGE, (limit_left, 45), (limit_left, 105), 3)
         pygame.draw.line(surface, ORANGE, (limit_right, 45), (limit_right, 105), 3)
 
@@ -344,7 +363,7 @@ class InputManager:
     """
     queued_inputs = []
     cortex_connection = None
-    cortex_command_min_weight = 0.3
+    cortex_command_min_weight = 0.1
     cortex_compute_interval = 300
     cortex_time_last_compute = 0
 
@@ -352,30 +371,34 @@ class InputManager:
 
     def init(self):
         """
-        Function to change between tester (own server and client) and cortex API mode
-        For DEBUG: similar to client test to decide which server to use
-        Cortex API mode by default
+        Function to initialize the connection 
         """
-        if self.use_test_server:
-            self.cortex_connection = CortexClient(UserCredentials.credentials, self, url="ws://localhost:8765")
-        else:
-            self.cortex_connection = CortexClient(UserCredentials.credentials, self)
+        self.cortex_connection = CortexClient(UserCredentials.credentials, self, url="ws://localhost:8765")
 
     def on_receive_cortex_data(self, data):
+        """
+        Function for putting new received date from cortex in to the queue
+        :param data: input message
+        """
         logging.debug("received cortex data: " + str(data))
         self.queued_inputs.append(data["com"])
 
     def compute_cortex_event(self):
-        time_passed = pygame.time.get_ticks() - self.cortex_time_last_compute  # time passed in ms
+        """
+        Function that helps dealing with input from cortex API by taking data from the queue and split the input into
+        the power(weight) of the signal and the player move
+        :return: tuple of the move and the weight of the signal
+        """
+        time_passed = pygame.time.get_ticks() - self.cortex_time_last_compute
 
         if time_passed < self.cortex_compute_interval:
             return None
 
-        self.cortex_time_last_compute = pygame.time.get_ticks()  # set to current
+        self.cortex_time_last_compute = pygame.time.get_ticks()
 
         logging.debug("computing cortex event")
 
-        if len(self.queued_inputs) > 0:  # error catching
+        if len(self.queued_inputs) > 0:
             best_match = [None, 0]
 
             while len(self.queued_inputs) > 0:
@@ -392,14 +415,21 @@ class InputManager:
         return None
 
     def on_loop(self, events):
+        """
+        Function for updating moves
+        :param events: pygame.event.get()
+        :return: tuple of the move and the weight of the signal (move and power of the signal 100% for keyboard)
+        """
+        # Cortex data input
         event = self.compute_cortex_event()
         if event:
             logging.debug("computed cortex event: {0}".format(event))
             return event
 
+        # Keyboard input (ignored if cortex data input exists )
         for event in events:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_RIGHT:
-                return Input.RIGHT, 1.0  # move and power of the signal (100% for keyboard)
+                return Input.RIGHT, 1.0
             elif event.type == pygame.KEYDOWN and event.key == pygame.K_LEFT:
                 return Input.LEFT, 1.0
         return None
@@ -440,7 +470,8 @@ class GameScreen:
         screen.blit(self.list_text, self.list_rect)
         screen.blit(self.counter_text, self.content_rect)
         screen.blit(self.power_of_signal_text, self.power_of_signal_rect)
-        #self.draw_lines(self.background) # DEBUGER
+        # for debugging
+        # self.draw_lines(self.background)
 
     def draw_lines(self, background):
         """
@@ -460,9 +491,12 @@ class MenuScreen:
     """
     current_page = 0
     is_countdown = False
+    is_collecting_signals = False
+    direction_collecting_signal = None
     is_end_of_game = False
     time_countdown_start = 0
-    countdown_in_seconds = 5
+    time_page_shown = 0
+    countdown_in_seconds = 0
     output_images = []
     command = ""
     power_of_signal = "Signal power:"
@@ -475,12 +509,17 @@ class MenuScreen:
         """
         self.font_text = pygame.font.Font('verdana.ttf', 30)
         self.font_command = pygame.font.Font('verdana.ttf', 36)
+        self.font_title = pygame.font.Font('verdana.ttf', 40)
 
         menu_surface = pygame.Surface((750, 750))
         menu_background = pygame.image.load("img/menu1.png").convert(menu_surface)
         self.background = menu_background
         game_status_surface = pygame.Surface((750, 250))
         self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
+
+    def set_menu_page(self, page_number):
+        self.time_page_shown = pygame.time.get_ticks()
+        self.current_page = page_number
 
     def update(self, input_event, game_state):
         """
@@ -489,16 +528,35 @@ class MenuScreen:
         :param game_state: current game state
         """
         if not self.is_countdown:
-            if input_event:
-                if input_event[1] > MIN_SIGNAL_WEIGHT:
-                    if self.current_page == 1:
-                        if input_event[0] == Input.LEFT:
-                            self.current_page += 1
+            time_passed = pygame.time.get_ticks() - self.time_page_shown
+
+            # show every page at least 2 seconds
+            if time_passed > 2000:
+                if input_event and self.current_page != 1:
+                    if self.current_page == 2:
+                        if input_event[0] == Input.LEFT and input_event[1] > game_state.min_signal_weight_left:
+                            self.set_menu_page(self.current_page + 1)
                     else:
-                        if input_event[0] == Input.RIGHT:
-                            self.current_page += 1
+                        if input_event[0] == Input.RIGHT and input_event[1] > game_state.min_signal_weight_right:
+                            self.set_menu_page(self.current_page + 1)
 
             if self.current_page == 1:
+                menu_surface = pygame.Surface((750, 750))
+                menu_background = pygame.image.load("img/menu_focus.png").convert(menu_surface)
+                self.background = menu_background
+
+                game_status_surface = pygame.Surface((750, 250))
+                self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
+
+                game_state.reset_signal_weight()
+
+                self.is_countdown = True
+                self.is_collecting_signals = True
+                self.direction_collecting_signal = Input.LEFT
+                self.countdown_in_seconds = 15
+                self.time_countdown_start = pygame.time.get_ticks()
+
+            if self.current_page == 2:
                 menu_surface = pygame.Surface((750, 750))
                 menu_background = pygame.image.load("img/menu2.png").convert(menu_surface)
                 self.background = menu_background
@@ -506,7 +564,7 @@ class MenuScreen:
                 game_status_surface = pygame.Surface((750, 250))
                 self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
 
-            elif self.current_page == 2:
+            elif self.current_page == 3:
                 menu2_surface = pygame.Surface((750, 750))
                 menu2_background = pygame.image.load("img/menu3.png").convert(menu2_surface)
                 self.background = menu2_background
@@ -517,30 +575,48 @@ class MenuScreen:
                 game_state.new_expected_sequence()
 
                 self.is_countdown = True
+                self.countdown_in_seconds = 10
                 self.time_countdown_start = pygame.time.get_ticks()
 
         else:
             time_passed = pygame.time.get_ticks() - self.time_countdown_start
             seconds_left = int(self.countdown_in_seconds - (time_passed / 1000))
 
-            self.output_images = []
-            for figure in game_state.expected_sequence:
-                image_pos = figure - 1
-                image = GameObject.images[image_pos]
-                self.output_images.append(image)
-
             self.command = "{0} seconds".format(seconds_left)
 
-            if seconds_left <= 0:
-                event = pygame.event.Event(START_GAME_EVENT)
-                pygame.event.post(event)
+            if self.is_collecting_signals:
+                game_state.update_signal_weight(input_event, self.direction_collecting_signal)
+
+                if seconds_left <= 0:
+                    if self.direction_collecting_signal == Input.LEFT:
+                        self.is_countdown = True
+                        self.is_collecting_signals = True
+                        self.direction_collecting_signal = Input.RIGHT
+                        self.countdown_in_seconds = 15
+                        self.time_countdown_start = pygame.time.get_ticks()
+                    else:
+                        self.is_countdown = False
+                        self.is_collecting_signals = False
+                        self.direction_collecting_signal = None
+                        self.set_menu_page(self.current_page + 1)
+                        self.command = ""
+            else:
+                self.output_images = []
+                for figure in game_state.expected_sequence:
+                    image_pos = figure - 1
+                    image = GameObject.images[image_pos]
+                    self.output_images.append(image)
+
+                if seconds_left <= 0:
+                    event = pygame.event.Event(START_GAME_EVENT)
+                    pygame.event.post(event)
 
     def on_end_game(self, game_state):
         """
         Function to react on end of the game event
         :param game_state: current game state
         """
-        self.current_page = 1
+        self.set_menu_page(2)
         self.is_countdown = False
         self.is_end_of_game = True
         self.command = ""
@@ -570,6 +646,11 @@ class MenuScreen:
         content_rect = content_text.get_rect(center=(375, 575))
         screen.blit(content_text, content_rect)
 
+        if self.is_collecting_signals:
+            calibration_text = self.font_title.render("On {0}".format(self.direction_collecting_signal.name), True, BLACK)
+            calibration_rect = calibration_text.get_rect(center=(375, 275))
+            screen.blit(calibration_text, calibration_rect)
+
         power_of_signal_text = self.font_text.render(self.power_of_signal, True, WHITE)
         power_of_signal_rect = power_of_signal_text.get_rect(center=(890, 25))
         screen.blit(power_of_signal_text, power_of_signal_rect)
@@ -593,6 +674,8 @@ class GameState:
     time_game_started = 0
     penalties = 0
     expected_sequence = []
+    min_signal_weight_left = 0.65
+    min_signal_weight_right = 0.65
 
     def on_start_game(self):
         """
@@ -618,6 +701,19 @@ class GameState:
         """
         self.matched_sequence = event.matched_objects
         self.penalties += event.penalty
+
+    def reset_signal_weight(self):
+        self.min_signal_weight_left = 0.0
+        self.min_signal_weight_right = 0.0
+
+    def update_signal_weight(self, input_event, direction):
+        if input_event:
+            # use 15% less than maximum
+            weight = input_event[1] - (input_event[1] * 0.3)
+            if input_event[0] == Input.LEFT and direction == Input.LEFT and weight > self.min_signal_weight_left:
+                self.min_signal_weight_left = weight
+            if input_event[0] == Input.RIGHT and direction == Input.RIGHT and weight > self.min_signal_weight_right:
+                self.min_signal_weight_right = weight
 
 
 class Game:
@@ -693,13 +789,13 @@ class Game:
                     logging.info("game ended")
 
             # update
-            input_indicator.update(input_event)
+            input_indicator.update(input_event, game_state)
 
             if in_menu:
                 menu_screen.update(input_event, game_state)
             else:
                 score_indicator.update(game_state)
-                player.update(input_event)
+                player.update(input_event, game_state)
                 object_manager.update(player)
 
             # render

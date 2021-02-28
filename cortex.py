@@ -1,3 +1,9 @@
+# This code based on the idea from blog post "Pygame Autobahn Integration Demo"
+# (https://github.com/globophobe/pygame-websockets) that was developed by globophobe.
+#
+# Json requests were created based on the Cortex API documentation from
+# (https://emotiv.gitbook.io/cortex-api/overview-of-api-flow)
+
 import json
 import logging
 
@@ -8,7 +14,7 @@ from autobahn.twisted.websocket import (
 
 class CortexClientProtocol(WebSocketClientProtocol):
     """
-    Class to deal with requests and responses for cortext API
+    Class to deal with requests and responses for cortex API
     """
     ID_QUERY_HEADSET = 1
     ID_CONTROL_DEVICE = 2
@@ -25,26 +31,27 @@ class CortexClientProtocol(WebSocketClientProtocol):
     @staticmethod
     def log_client(msg):
         """
-        Function for Debug
+        Function for Debug mode
         """
         logging.debug("CortexClient - {0}".format(msg))
 
-    def send_request(self, id, method, params):
+    def send_request(self, msg_id, method, params):
         """
         Function for creating a request body
-        :param id: current request id (update by respond)
+        :param msg_id: current request id (update by respond)
         :param method: current method
         :param params: current parameters for request
         """
         request = {
             "jsonrpc": "2.0",
-            "id": id,
+            "id": msg_id,
             "method": method,
             "params": params
         }
 
         self.log_client("request: {0}".format(request))
-        self.sendMessage(json.dumps(request).encode('utf8')) # twisted expect binary
+        # twisted expects binary
+        self.sendMessage(json.dumps(request).encode('utf8'))
 
     def onOpen(self):
         """
@@ -55,8 +62,13 @@ class CortexClientProtocol(WebSocketClientProtocol):
 
     def onMessage(self, payload, isBinary):
         """
-        Function for dealing with all communication between client and server(Emotiv)
+        Function for dealing with all communication between client and server(Emotiv) by using
+        autobahn.websocket.interfaces.IWebSocketChannel.onMessage
+
+        Implements steps (sequence) from Cortex API documentation to get to the data stream
+         (https://emotiv.gitbook.io/cortex-api/overview-of-api-flow)
         :param payload: current message
+        :param isBinary:
         """
         decoded = payload.decode('utf8')
         self.log_client("response: {0}".format(decoded))
@@ -123,22 +135,23 @@ class CortexClientProtocol(WebSocketClientProtocol):
 
     def onClose(self, wasClean, code, reason):
         """
-        Logger function for debug mode
-        (autobahn.websocket.interfaces.IWebSocketChannel.onClose)
+        Function for debug mode (autobahn.websocket.interfaces.IWebSocketChannel.onClose)
         """
         self.log_client("connection closed: {0}".format(reason))
 
 
 class CortexClientFactory(WebSocketClientFactory):
     """
-     Class for twisted client factory to combine additional parameters of the client with the receiver
+     Class for twisted client factory (Twisted-based WebSocket client factories) to combine additional parameters
+     of the client with the receiver
     """
-    protocol = CortexClientProtocol # from WebSocketClientFactory protocol
+    # from WebSocketClientFactory protocol
+    protocol = CortexClientProtocol()
 
     def __init__(self, url, credentials, receiver):
         """
         Set up WebSocketClientFactory and init variables
-        :param url: BCI url
+        :param url: Cortex API url
         :param credentials: user credentials from user_credentials.py
         :param receiver: pointer to an InputManger class
         """
@@ -156,7 +169,8 @@ class CortexClient:
         Factory initialisation
         :param credentials: user credentials from user_credentials.py
         :param receiver: pointer to an InputManger class
-        :param url: BCI url
+        :param url: Cortex API url
         """
         factory = CortexClientFactory(url, credentials, receiver)
-        connectWS(factory) # autom. if secure -> ssl if not -> tcp
+        # automatic: if secure -> ssl, if not -> tcp
+        connectWS(factory)
