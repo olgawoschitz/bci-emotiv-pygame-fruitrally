@@ -25,12 +25,14 @@ START_GAME_EVENT = pygame.USEREVENT + 1
 END_GAME_EVENT = pygame.USEREVENT + 2
 SCORE_CHANGE_EVENT = pygame.USEREVENT + 3
 
-MIN_SIGNAL_WEIGHT = 0.8
-
+MIN_SIGNAL_WEIGHT = 0.8 # min signal power for acceptance
 SCORE_TIMER = "00:00:00"
 
 
 class GameObjectManager:
+    """
+    Class to manage all objects in a game
+    """
     move_tracks = [94, 281, 469, 656]
     active_objects = []
     time_last_object = 0
@@ -38,23 +40,41 @@ class GameObjectManager:
     sequence_counter = 0
 
     def __init__(self, expected_sequence, max_objects=5):
+        """
+        Python method as a construct to initialize variables
+
+        :param expected_sequence: list of generated objects on the shopping list
+        :param max_objects: max number of objects on the screen on the same time
+        """
         self.expected_sequence = expected_sequence
         self.max_objects = max_objects
 
     def on_loop(self):
+        """
+        Function that generates random objects to shown on the screen.
+
+        """
         time_passed = pygame.time.get_ticks() - self.time_last_object
         if time_passed > (1500 + self.next_random_delay):
             if len(self.active_objects) < self.max_objects:
-                self.active_objects.append(self.generate_new_objext())
+                self.active_objects.append(self.generate_new_object())
                 self.next_random_delay = random.randint(500, 1500)
                 self.time_last_object = pygame.time.get_ticks()
 
-    def generate_new_objext(self):
+    def generate_new_object(self):
+        """
+        Object and position generator
+        :return: GameObject with the new generated object and its position
+        """
         x_pos = random.choice(self.move_tracks)
         object_type = random.choice(list(GameObjectType))
         return GameObject(object_type, x_pos)
 
     def update(self, player):
+        """
+        Function that updates objects on the screen and detect any collisions between an object and the player
+        :param player: object of Player class
+        """
         to_delete = []
 
         for obj in self.active_objects:
@@ -68,6 +88,7 @@ class GameObjectManager:
                 if obj.object_type == self.expected_sequence[self.sequence_counter]:
                     pygame.mixer.Sound("sound/magic-chime.wav").play()
                     self.sequence_counter = self.sequence_counter + 1
+
                     if self.sequence_counter >= len(self.expected_sequence):
                         event = pygame.event.Event(END_GAME_EVENT)
                         pygame.event.post(event)
@@ -88,11 +109,18 @@ class GameObjectManager:
             self.active_objects.remove(obj)
 
     def render(self, screen):
+        """
+        Function to render objects on the screen
+        :param screen: game screen
+        """
         for obj in self.active_objects:
             obj.render(screen)
 
 
 class GameObjectType(IntEnum):
+    """ Class from generic enumeration.
+    To define enumerations for game objects
+    """
     APPLE = 1
     BANANA = 2
     GRAPES = 3
@@ -102,6 +130,9 @@ class GameObjectType(IntEnum):
 
 
 class GameObject(pygame.sprite.Sprite):
+    """
+    Class that defines and managed objects
+    """
     images = [
         pygame.image.load("img/apple.png"),
         pygame.image.load("img/banana.png"),
@@ -112,6 +143,12 @@ class GameObject(pygame.sprite.Sprite):
     ]
 
     def __init__(self, object_type, track_x):
+        """
+        Python method as a construct to initialize variables
+
+        :param object_type: type of an object
+        :param track_x: defines the position of an object
+        """
         super(GameObject, self).__init__()
         self.object_type = object_type
         self.surface = pygame.Surface((96, 96))
@@ -123,18 +160,35 @@ class GameObject(pygame.sprite.Sprite):
         )
 
     def is_at_bottom(self):
+        """
+        Function to check if object reached  bottom of the game screen
+        :return: boolean (reached or not)
+        """
         return self.rect.bottom > 770
 
     def update(self):
+        """
+        Defines the speed of an object
+        """
         self.rect.move_ip(0, 1.5)
 
     def render(self, surface):
+        """
+        Render function for updating objects moves
+        :param surface: main game background
+        """
         img = self.images[self.object_type - 1]
         surface.blit(img, self.rect)
 
 
 class Player(pygame.sprite.Sprite):
+    """
+    Class to manage and update player moves
+    """
     def __init__(self):
+        """
+        Defines player
+        """
         super(Player, self).__init__()
         self.image = pygame.image.load("img/Shopping_Cart.png")
         self.surface = pygame.Surface((141, 107))  # width and length -> same as the image
@@ -143,6 +197,10 @@ class Player(pygame.sprite.Sprite):
         )
 
     def update(self, input_event):
+        """
+        Manage input signals and defines the move frame and steps
+        :param input_event:
+        """
         if input_event:
             if input_event[1] > MIN_SIGNAL_WEIGHT:  # power of the signal is the minimum for acceptance
                 if input_event[0] == Input.RIGHT:
@@ -156,18 +214,31 @@ class Player(pygame.sprite.Sprite):
             self.rect.right = 740
 
     def render(self, surface):
+        """
+        Render function for player move update
+        :param surface: main game background
+        """
         surface.blit(self.image, self.rect)
 
 
-# overview about the signals on the screen
 class InputIndicator:
+    """
+    Class for signals power update and show
+    """
     left = 0.0
     right = 0.0
 
     def __init__(self):
+        """
+        For Font initialization
+        """
         self.font = pygame.font.Font('verdana.ttf', 14)
 
     def update(self, input_event):
+        """
+        Function for updating and showing signals power on the game status
+        :param input_event:
+        """
         if input_event:
             self.left = 0.0
             self.right = 0.0
@@ -178,16 +249,18 @@ class InputIndicator:
                 self.left = input_event[1]
 
     def render(self, surface):
+        """
+        Render function for input indicator
+        :param surface: game status background
+        """
         max_length = 115
         width_right = max_length * self.right
         width_left = max_length * self.left
         x_left = 780 + (max_length - width_left)
 
-        # left
         pygame.draw.rect(surface, LIGHT_GREY, (780, 50, 115, 50))
         pygame.draw.rect(surface, LIGHT_GREEN, (x_left, 50, width_left, 50))
 
-        # right
         pygame.draw.rect(surface, LIGHT_GREY, (895, 50, 115, 50))
         pygame.draw.rect(surface, LIGHT_GREEN, (895, 50, width_right, 50))
 
@@ -207,13 +280,23 @@ class InputIndicator:
 
 
 class ScoreIndicator:
+    """
+    Class to manage game score and update matched objects
+    """
     def __init__(self):
+        """
+        Additional variables initialization
+        """
         self.font = pygame.font.Font('verdana.ttf', 30)
         self.timer_text = "00:00:00"
         self.matched_text = ""
         self.output_images = []
 
     def update(self, game_state):
+        """
+        Function for updating game timer and matched figures
+        :param game_state: current game state
+        """
         game_time = pygame.time.get_ticks() - game_state.time_game_started
         game_time += (game_state.penalties * 5000)
 
@@ -226,6 +309,10 @@ class ScoreIndicator:
             self.output_images.append(image)
 
     def render(self, surface):
+        """
+        Render function for timer and matched objects
+        :param surface: game status background
+        """
         text_timer = self.font.render(self.timer_text, True, WHITE)
         text_rect_timer = text_timer.get_rect(center=(890, 550))
         surface.blit(text_timer, text_rect_timer)
@@ -244,11 +331,17 @@ class ScoreIndicator:
 
 
 class Input(Enum):
+    """ Class from generic enumeration.
+    To define enumerations for game moves
+    """
     LEFT = 1
     RIGHT = 2
 
 
 class InputManager:
+    """
+    Class to deal with any game inputs
+    """
     queued_inputs = []
     cortex_connection = None
     cortex_command_min_weight = 0.3
@@ -257,12 +350,16 @@ class InputManager:
 
     use_test_server = False
 
-    def init(self):  # similar to client test to decide which server to use
-        receiver = self  # define receiver as a pointer to InputManager  -> needs as an argument CortexClient
+    def init(self):
+        """
+        Function to change between tester (own server and client) and cortex API mode
+        For DEBUG: similar to client test to decide which server to use
+        Cortex API mode by default
+        """
         if self.use_test_server:
-            self.cortex_connection = CortexClient(UserCredentials.credentials, receiver, url="ws://localhost:8765")
+            self.cortex_connection = CortexClient(UserCredentials.credentials, self, url="ws://localhost:8765")
         else:
-            self.cortex_connection = CortexClient(UserCredentials.credentials, receiver)
+            self.cortex_connection = CortexClient(UserCredentials.credentials, self)
 
     def on_receive_cortex_data(self, data):
         logging.debug("received cortex data: " + str(data))
@@ -309,7 +406,13 @@ class InputManager:
 
 
 class GameScreen:
+    """
+     Class for game screen management and visualisation
+     """
     def __init__(self):
+        """
+        Initializes fonts, backgrounds and additional game info
+        """
         self.font_text = pygame.font.Font('verdana.ttf', 30)
 
         game_surface = pygame.Surface((750, 750))
@@ -328,14 +431,23 @@ class GameScreen:
         self.power_of_signal_rect = self.power_of_signal_text.get_rect(center=(890, 25))
 
     def render(self, screen):
+        """
+        Render function for the background and information on the game screen
+        :param screen: main game screen
+        """
         screen.blit(self.background, (9, 9))
         screen.blit(self.game_status_background, (770, 9))
         screen.blit(self.list_text, self.list_rect)
         screen.blit(self.counter_text, self.content_rect)
         screen.blit(self.power_of_signal_text, self.power_of_signal_rect)
-        #self.draw_lines(self.background)
+        #self.draw_lines(self.background) # DEBUGER
 
     def draw_lines(self, background):
+        """
+        Draw lines for equal split of the game screen
+        Only for Debug mode
+        :param background: game background
+        """
         # line(surface, color, start_pos, end_pos, width) -> Rect
         pygame.draw.line(background, WHITE, (187, 0), (187, 900), 3)
         pygame.draw.line(background, WHITE, (375, 0), (375, 900), 3)
@@ -343,6 +455,9 @@ class GameScreen:
 
 
 class MenuScreen:
+    """
+    Class for menu screen management and visualisation
+    """
     current_page = 0
     is_countdown = False
     is_end_of_game = False
@@ -355,6 +470,9 @@ class MenuScreen:
     score_time = ""
 
     def __init__(self):
+        """
+        Initializes fonts and backgrounds
+        """
         self.font_text = pygame.font.Font('verdana.ttf', 30)
         self.font_command = pygame.font.Font('verdana.ttf', 36)
 
@@ -365,6 +483,11 @@ class MenuScreen:
         self.game_status_background = pygame.image.load("img/game_status.png").convert(game_status_surface)
 
     def update(self, input_event, game_state):
+        """
+        Function that updates menu by managing inputs from the player based on the signal power
+        :param input_event: type of the input
+        :param game_state: current game state
+        """
         if not self.is_countdown:
             if input_event:
                 if input_event[1] > MIN_SIGNAL_WEIGHT:
@@ -413,6 +536,10 @@ class MenuScreen:
                 pygame.event.post(event)
 
     def on_end_game(self, game_state):
+        """
+        Function to react on end of the game event
+        :param game_state: current game state
+        """
         self.current_page = 1
         self.is_countdown = False
         self.is_end_of_game = True
@@ -425,6 +552,10 @@ class MenuScreen:
         self.score_time /= 1000
 
     def render(self, screen):
+        """
+        Render function for the background and information in menu
+        :param screen: main game screen
+        """
         screen.blit(self.background, (9, 9))
         screen.blit(self.game_status_background, (770, 9))
 
@@ -455,22 +586,36 @@ class MenuScreen:
 
 
 class GameState:
+    """
+    Class that contains all info about current game state
+    """
     matched_sequence = []
     time_game_started = 0
     penalties = 0
     expected_sequence = []
 
     def on_start_game(self):
+        """
+        Function to initialize variables for the start of the game
+        """
         self.time_game_started = pygame.time.get_ticks()
         self.penalties = 0
         self.matched_sequence = []
 
     def new_expected_sequence(self):
+        """
+        Function that create a new object sequence for the game (Shopping list)
+        :return: An array with objects in a sequence
+        """
         self.expected_sequence = random.sample(list(GameObjectType), 3)
         logging.info("expected_sequence: {0}".format(self.expected_sequence))
         return self.expected_sequence
 
     def on_score_change(self, event):
+        """
+        Update game state variables for later output
+        :param event: pygame event
+        """
         self.matched_sequence = event.matched_objects
         self.penalties += event.penalty
 
@@ -480,10 +625,16 @@ class Game:
     fps = 60
 
     def __init__(self):
+        """
+        Instances InputManager class and sets up the game clock
+        """
         self.input_manager = InputManager()  # instance of InputManager
         self.clock = pygame.time.Clock()  # for fps and to calculate how long does the game is running
 
     def start(self):
+        """
+        Main game loop function
+        """
         pygame.init()
         pygame.font.init()
 
@@ -510,6 +661,7 @@ class Game:
         pygame.mixer.music.play(-1, fade_ms=1000)
         pygame.mixer.music.set_volume(0.5)
 
+        # main game loop
         while running:
             events = pygame.event.get()
             input_event = self.input_manager.on_loop(events)
@@ -520,6 +672,7 @@ class Game:
             if input_event:
                 logging.info("event from input_manager: {0}".format(input_event))
 
+            # dealing with inputs
             for event in events:
                 if event.type == pygame.QUIT:
                     running = False
@@ -567,12 +720,16 @@ class Game:
             # logging.debug("fps: {0}".format(self.clock.get_fps()))
             self.clock.tick(self.fps)
 
-            yield  # for concurrency in coop  - yield sequence generator - "manual" decision for loop - 60 fps - 60 times
+            yield  # yield sequence generator(for concurrency in coop) - "manual" decision for loop - 60 fps - 60 times
 
         reactor.stop()
 
 
 def main():
+    """
+    Starter function
+
+    """
     logging.basicConfig(level=logging.DEBUG)
 
     game = Game()
