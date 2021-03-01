@@ -471,7 +471,7 @@ class GameScreen:
         screen.blit(self.counter_text, self.content_rect)
         screen.blit(self.power_of_signal_text, self.power_of_signal_rect)
         # for debugging
-        # self.draw_lines(self.background)
+        self.draw_lines(self.background)
 
     def draw_lines(self, background):
         """
