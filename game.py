@@ -642,13 +642,13 @@ class MenuScreen:
             screen.blit(img, rect)
             i = i + 100
 
-        content_text = self.font_command.render(self.command, True, DARK_BLUE)
+        content_text = self.font_command.render(self.command, True, WHITE)
         content_rect = content_text.get_rect(center=(375, 575))
         screen.blit(content_text, content_rect)
 
         if self.is_collecting_signals:
-            calibration_text = self.font_title.render("On {0}".format(self.direction_collecting_signal.name), True, BLACK)
-            calibration_rect = calibration_text.get_rect(center=(375, 275))
+            calibration_text = self.font_title.render("On {0}".format(self.direction_collecting_signal.name), True, DARK_BLUE)
+            calibration_rect = calibration_text.get_rect(center=(375, 355))
             screen.blit(calibration_text, calibration_rect)
 
         power_of_signal_text = self.font_text.render(self.power_of_signal, True, WHITE)
