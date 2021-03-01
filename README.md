@@ -44,7 +44,7 @@ Images:
     - lemon: Icon made by Freepik from www.flaticon.com
     - orange: Icon made by Smashicons from www.flaticon.com
     - pineapple: Icon made by Freepik from www.flaticon.com
-    - shopping card: Icon made by iconixar from www.flaticon.com
+    - shopping cart: Icon made by iconixar from www.flaticon.com
     
 - backgrounds and menu pictures created by Olga Zharikova 
 
