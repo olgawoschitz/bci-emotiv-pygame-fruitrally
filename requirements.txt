@@ -3,5 +3,3 @@ Twisted==20.3.0
 autobahn==21.2.1
 websocket-client==0.57.0
 pyOpenSSL==20.0.1
-# only for test server
-websockets==8.1
