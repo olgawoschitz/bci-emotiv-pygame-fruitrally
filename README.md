@@ -37,8 +37,17 @@ Sounds:
 
 Images: 
 
-- all figure images were taken from https://www.freepikcompany.com under Copyright © 2010-2021 Freepik Company S.L.
+- all figure images were taken from https://www.freepikcompany.com
+    - apple: Icon made by Good Ware from www.flaticon.com
+    - banana: Icon made by Pixel Perfect from www.flaticon.com
+    - grapes: Icon made by Freepik from www.flaticon.com
+    - lemon: Icon made by Freepik from www.flaticon.com
+    - orange: Icon made by Smashicons from www.flaticon.com
+    - pineapple: Icon made by Freepik from www.flaticon.com
+    - shopping card: Icon made by iconixar from www.flaticon.com
+    
 - backgrounds and menu pictures created by Olga Zharikova 
+
 
 Fonts:
 
