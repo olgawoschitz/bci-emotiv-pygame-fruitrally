@@ -146,7 +146,7 @@ class CortexClientFactory(WebSocketClientFactory):
      of the client with the receiver
     """
     # from WebSocketClientFactory protocol
-    protocol = CortexClientProtocol()
+    protocol = CortexClientProtocol
 
     def __init__(self, url, credentials, receiver):
         """

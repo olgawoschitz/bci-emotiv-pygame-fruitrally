@@ -373,7 +373,7 @@ class InputManager:
         """
         Function to initialize the connection 
         """
-        self.cortex_connection = CortexClient(UserCredentials.credentials, self, url="ws://localhost:8765")
+        self.cortex_connection = CortexClient(UserCredentials.credentials, self)
 
     def on_receive_cortex_data(self, data):
         """
