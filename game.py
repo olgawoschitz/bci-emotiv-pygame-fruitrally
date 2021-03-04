@@ -371,7 +371,7 @@ class InputManager:
 
     def init(self):
         """
-        Function to initialize the connection 
+        Function to initialize the connection
         """
         self.cortex_connection = CortexClient(UserCredentials.credentials, self)
 
@@ -575,7 +575,7 @@ class MenuScreen:
                 game_state.new_expected_sequence()
 
                 self.is_countdown = True
-                self.countdown_in_seconds = 10
+                self.countdown_in_seconds = 7
                 self.time_countdown_start = pygame.time.get_ticks()
 
         else:
@@ -708,7 +708,7 @@ class GameState:
 
     def update_signal_weight(self, input_event, direction):
         if input_event:
-            # use 15% less than maximum
+            # use 30% less than maximum
             weight = input_event[1] - (input_event[1] * 0.3)
             if input_event[0] == Input.LEFT and direction == Input.LEFT and weight > self.min_signal_weight_left:
                 self.min_signal_weight_left = weight

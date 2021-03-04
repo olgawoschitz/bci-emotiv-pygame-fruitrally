@@ -68,7 +68,7 @@ class CortexClientProtocol(WebSocketClientProtocol):
         Implements steps (sequence) from Cortex API documentation to get to the data stream
          (https://emotiv.gitbook.io/cortex-api/overview-of-api-flow)
         :param payload: current message
-        :param isBinary:
+        :param isBinary: boolean for check
         """
         decoded = payload.decode('utf8')
         self.log_client("response: {0}".format(decoded))
