@@ -172,5 +172,5 @@ class CortexClient:
         :param url: Cortex API url
         """
         factory = CortexClientFactory(url, credentials, receiver)
-        # automatic: if secure -> ssl, if not -> tcp
+        # if secure -> ssl, if not -> tcp
         connectWS(factory)
