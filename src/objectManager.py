@@ -77,7 +77,7 @@ class GameObjectManager:
                     penalty += 1
                 event = pygame.event.Event(SCORE_CHANGE_EVENT, {
                     "penalty": penalty,
-                    "matched_objects":  self.expected_sequence[:self.sequence_counter]
+                    "matched_objects": self.expected_sequence[:self.sequence_counter]
                 })
                 pygame.event.post(event)
                 to_delete.append(obj)

@@ -6,6 +6,7 @@ class CortexClient:
     """
      Class for setting up the factory and init additional info for connection
     """
+
     def __init__(self, credentials, receiver, url="wss://localhost:6868"):
         """
         Factory initialisation

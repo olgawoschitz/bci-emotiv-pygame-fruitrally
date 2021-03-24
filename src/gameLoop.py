@@ -19,6 +19,7 @@ SCORE_CHANGE_EVENT = pygame.USEREVENT + 3
 
 BLACK = (0, 0, 0)
 
+
 class Game:
     # properties
     running = False
