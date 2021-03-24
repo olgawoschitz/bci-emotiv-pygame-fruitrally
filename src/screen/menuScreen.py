@@ -1,7 +1,7 @@
 from datetime import datetime
 import pygame
-from input import Input
-from gameObject import GameObject
+from src.input import Input
+from src.gameObject import GameObject
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -40,9 +40,9 @@ class MenuScreen:
         """
         Initializes fonts and backgrounds
         """
-        self.font_text = pygame.font.Font('verdana.ttf', 30)
-        self.font_command = pygame.font.Font('verdana.ttf', 36)
-        self.font_title = pygame.font.Font('verdana.ttf', 40)
+        self.font_text = pygame.font.Font('./font/verdana.ttf', 30)
+        self.font_command = pygame.font.Font('./font/verdana.ttf', 36)
+        self.font_title = pygame.font.Font('./font/verdana.ttf', 40)
 
         menu_surface = pygame.Surface((750, 750))
         menu_background = pygame.image.load("img/menu1.png").convert(menu_surface)

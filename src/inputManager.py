@@ -1,6 +1,6 @@
-from cortex import CortexClient
+from src.cortex.client import CortexClient
 from user_credentials import UserCredentials
-from input import Input
+from src.input import Input
 
 import pygame
 import logging

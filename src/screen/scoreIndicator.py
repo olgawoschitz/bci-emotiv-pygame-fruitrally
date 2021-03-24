@@ -1,8 +1,8 @@
 import pygame
 
 from datetime import datetime
-from objectType import GameObjectType
-from gameObject import GameObject
+from src.objectType import GameObjectType
+from src.gameObject import GameObject
 
 WHITE = (255, 255, 255)
 
@@ -15,7 +15,7 @@ class ScoreIndicator:
         """
         Additional variables initialization
         """
-        self.font = pygame.font.Font('verdana.ttf', 30)
+        self.font = pygame.font.Font('./font/verdana.ttf', 30)
         self.timer_text = "00:00:00"
         self.matched_text = ""
         self.output_images = []

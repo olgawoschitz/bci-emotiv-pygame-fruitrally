@@ -1,17 +1,17 @@
 import pygame
 import logging
 
-from InputIndicator import InputIndicator
-from objectManager import GameObjectManager
-from gameScreen import GameScreen
-from gameState import GameState
+from src.screen.inputIndicator import InputIndicator
+from src.objectManager import GameObjectManager
+from src.screen.mainScreen import GameScreen
+from src.gameState import GameState
 from twisted.internet import reactor
 from twisted.internet.task import Cooperator
-from player import Player
+from src.player import Player
 
-from inputManager import InputManager
-from menuScreen import MenuScreen
-from scoreIndicator import ScoreIndicator
+from src.inputManager import InputManager
+from src.screen.menuScreen import MenuScreen
+from src.screen.scoreIndicator import ScoreIndicator
 
 START_GAME_EVENT = pygame.USEREVENT + 1
 END_GAME_EVENT = pygame.USEREVENT + 2

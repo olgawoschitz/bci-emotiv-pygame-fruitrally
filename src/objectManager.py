@@ -1,11 +1,10 @@
-from objectType import GameObjectType
-from gameObject import GameObject
+from src.objectType import GameObjectType
+from src.gameObject import GameObject
 
 import pygame
 import logging
 import random
 
-START_GAME_EVENT = pygame.USEREVENT + 1
 END_GAME_EVENT = pygame.USEREVENT + 2
 SCORE_CHANGE_EVENT = pygame.USEREVENT + 3
 

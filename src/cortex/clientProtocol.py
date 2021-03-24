@@ -1,15 +1,7 @@
-# This code based on the idea from blog post "Pygame Autobahn Integration Demo"
-# (https://github.com/globophobe/pygame-websockets) that was developed by globophobe.
-#
-# Json requests were created based on the Cortex API documentation from
-# (https://emotiv.gitbook.io/cortex-api/overview-of-api-flow)
-
 import json
 import logging
 
-from autobahn.twisted.websocket import (
-    WebSocketClientProtocol, WebSocketClientFactory, connectWS
-)
+from autobahn.twisted.websocket import WebSocketClientProtocol
 
 
 class CortexClientProtocol(WebSocketClientProtocol):
@@ -138,39 +130,3 @@ class CortexClientProtocol(WebSocketClientProtocol):
         Function for debug mode (autobahn.websocket.interfaces.IWebSocketChannel.onClose)
         """
         self.log_client("connection closed: {0}".format(reason))
-
-
-class CortexClientFactory(WebSocketClientFactory):
-    """
-     Class for twisted client factory (Twisted-based WebSocket client factories) to combine additional parameters
-     of the client with the receiver
-    """
-    # from WebSocketClientFactory protocol
-    protocol = CortexClientProtocol
-
-    def __init__(self, url, credentials, receiver):
-        """
-        Set up WebSocketClientFactory and init variables
-        :param url: Cortex API url
-        :param credentials: user credentials from user_credentials.py
-        :param receiver: pointer to an InputManger class
-        """
-        WebSocketClientFactory.__init__(self, url)
-        self.receiver = receiver
-        self.credentials = credentials
-
-
-class CortexClient:
-    """
-     Class for setting up the factory and init additional info for connection
-    """
-    def __init__(self, credentials, receiver, url="wss://localhost:6868"):
-        """
-        Factory initialisation
-        :param credentials: user credentials from user_credentials.py
-        :param receiver: pointer to an InputManger class
-        :param url: Cortex API url
-        """
-        factory = CortexClientFactory(url, credentials, receiver)
-        # if secure -> ssl, if not -> tcp
-        connectWS(factory)

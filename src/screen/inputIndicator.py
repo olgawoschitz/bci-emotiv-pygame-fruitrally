@@ -1,9 +1,5 @@
 import pygame
-
-from datetime import datetime
-from objectType import GameObjectType
-from gameObject import GameObject
-from input import Input
+from src.input import Input
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -30,7 +26,7 @@ class InputIndicator:
         """
         For Font initialization
         """
-        self.font = pygame.font.Font('verdana.ttf', 14)
+        self.font = pygame.font.Font('./font/verdana.ttf', 14)
 
     def update(self, input_event, game_state):
         """

@@ -18,7 +18,7 @@ class GameScreen:
         """
         Initializes fonts, backgrounds and additional game info
         """
-        self.font_text = pygame.font.Font('verdana.ttf', 30)
+        self.font_text = pygame.font.Font('./font/verdana.ttf', 30)
 
         game_surface = pygame.Surface((750, 750))
         self.background = pygame.image.load("img/background.png").convert(game_surface)

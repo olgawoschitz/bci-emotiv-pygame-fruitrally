@@ -2,8 +2,8 @@ import pygame
 import logging
 import random
 
-from objectType import GameObjectType
-from input import Input
+from src.objectType import GameObjectType
+from src.input import Input
 
 
 class GameState:
