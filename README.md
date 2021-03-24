@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # **Fruit Rally**
 This project demonstrates how to integrate a Brain-Computer-Interface device ([Emotiv](https://www.emotiv.com/)) with a desktop-based Python game implemented with pygame. The integration is based on the [Emotiv Cortex API](https://emotiv.gitbook.io/cortex-api/) and uses an implementation with the [Twisted framework](https://autobahn.readthedocs.io/en/latest/reference/autobahn.twisted.html) for asynchronous WebSocket interaction. With this integration, the game is able to receive mental commands and it can be controlled completely with brain signals from a BCI device.
 
