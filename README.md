@@ -5,6 +5,7 @@ the shopping list and recall it during the game in the correct order by putting 
 
 Since mental command training is quite complicated. You can have a strong signal for right-command and a weak signal for left-command, in the game you will get tested on your command power. Based on this score you will get specified minimal power of the signal for the move.
 
+![game in action](img/gameInAction.png)
 
 ## **How to run this project**
 
