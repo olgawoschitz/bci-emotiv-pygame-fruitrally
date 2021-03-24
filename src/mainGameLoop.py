@@ -41,7 +41,7 @@ class Game:
         pygame.font.init()
 
         # set the title of the window
-        pygame.display.set_caption("Memorize Shopping List")
+        pygame.display.set_caption("Fruit Rally")
 
         screen = pygame.display.set_mode((1024, 768))
 
