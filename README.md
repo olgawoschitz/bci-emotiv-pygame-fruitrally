@@ -1,7 +1,11 @@
-# **Pygame memory shopping list.**
+# **Fruit Rally**
+This project demonstrates how to integrate a Brain-Computer-Interface device ([Emotiv](https://www.emotiv.com/)) with a desktop-based Python game implemented with pygame. The integration is based on the [Emotiv Cortex API](https://emotiv.gitbook.io/cortex-api/bci) and uses an implementation with the [Twisted framework](https://autobahn.readthedocs.io/en/latest/reference/autobahn.twisted.html) for asynchronous WebSocket interaction. With this integration, the game is able to receive mental commands and it can be controlled completely with brain signals from a BCI device.
 
-This is a simple memory game that works with a keyboard and with Cortex API (Emotiv). All you have to  do is to remember
-the shopping list and recall it during the game in the correct order by putting the items into the shopping cart. You will have only 7 seconds to memorize the shopping list. If you caught the right item, you’ll hear a signal and see the item on the screen right, but if you caught a wrong item, you will get 5 seconds additionally to your score time. The goal is to catch all items on your list as fast as possible. 
+Besides, the project can be simulated with a virtual brain wear device (Emotiv) or a keyboard.
+
+## Game
+This is a simple memory game. All you have to  do is to remember
+the shopping list and recall it during the game in the correct order by putting the items into the shopping cart. You will have only 7 seconds to memorize the shopping list. For collecting items that are not on the list you will get 5 seconds additionally to your score time. The goal is to catch all items on your list as fast as possible. 
 
 Since mental command training is quite complicated. You can have a strong signal for right-command and a weak signal for left-command, in the game you will get tested on your command power. Based on this score you will get specified minimal power of the signal for the move.
 
