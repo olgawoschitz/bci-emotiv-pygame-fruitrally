@@ -4,13 +4,13 @@ from src.input import Input
 
 class Player(pygame.sprite.Sprite):
     """
-    Class to manage and update player moves
+    Class to manage and update player moves (Shopping cart)
     """
     time_last_move = 0
 
     def __init__(self):
         """
-        Defines player
+        Function that defines a player and its frame
         """
         super(Player, self).__init__()
         self.image = pygame.image.load("img/Shopping_Cart.png")
@@ -21,7 +21,7 @@ class Player(pygame.sprite.Sprite):
 
     def update(self, input_event, game_state):
         """
-        Manage input signals and defines the move frame and steps
+        Manage input signals, defines the move frame and steps
         :param input_event: current input
         :param game_state: current game state
         """
@@ -47,7 +47,7 @@ class Player(pygame.sprite.Sprite):
 
     def render(self, surface):
         """
-        Render function for player move update
+        Render function for move update
         :param surface: main game background
         """
         surface.blit(self.image, self.rect)

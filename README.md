@@ -24,7 +24,7 @@ To run this project it is recommended to setup a virtual environment by using re
 
 5. run the game: 
 
-    `python game.py`
+    `python src/mainGameLoop.py`
 
 
 ## **Credits**

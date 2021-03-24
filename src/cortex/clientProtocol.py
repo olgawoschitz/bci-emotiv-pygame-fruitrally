@@ -6,7 +6,7 @@ from autobahn.twisted.websocket import WebSocketClientProtocol
 
 class CortexClientProtocol(WebSocketClientProtocol):
     """
-    Class to deal with requests and responses for cortex API
+    Class for connection establishing and handling all requests and responses for cortex API
     """
     ID_QUERY_HEADSET = 1
     ID_CONTROL_DEVICE = 2

@@ -43,10 +43,18 @@ class GameState:
         self.penalties += event.penalty
 
     def reset_signal_weight(self):
+        """
+        Reset weight of signals
+        """
         self.min_signal_weight_left = 0.0
         self.min_signal_weight_right = 0.0
 
     def update_signal_weight(self, input_event, direction):
+        """
+        Function that specified the min. signal weight for playing the game
+        :param input_event: received signal
+        :param direction: signal input direction
+        """
         if input_event:
             # use 30% less than maximum
             weight = input_event[1] - (input_event[1] * 0.3)

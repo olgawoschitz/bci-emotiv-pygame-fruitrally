@@ -31,7 +31,7 @@ class GameObjectManager:
 
     def on_loop(self):
         """
-        Function that generates random objects to shown on the screen.
+        Function that generates random game objects to shown on the screen.
 
         """
         time_passed = pygame.time.get_ticks() - self.time_last_object

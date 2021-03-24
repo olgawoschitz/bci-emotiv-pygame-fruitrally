@@ -29,8 +29,9 @@ class Game:
         """
         Instances InputManager class and sets up the game clock
         """
-        self.input_manager = InputManager()  # instance of InputManager
-        self.clock = pygame.time.Clock()  # for fps and to calculate how long does the game is running
+        self.input_manager = InputManager()
+        # for fps and to calculate how long does the game is running
+        self.clock = pygame.time.Clock()
 
     def start(self):
         """
@@ -39,14 +40,15 @@ class Game:
         pygame.init()
         pygame.font.init()
 
-        pygame.display.set_caption("My game")  # set the title of the window
+        # set the title of the window
+        pygame.display.set_caption("Memorize Shopping List")
 
         screen = pygame.display.set_mode((1024, 768))
 
         game_screen = GameScreen()
         menu_screen = MenuScreen()
-
-        self.input_manager.init()  # non blocking operation
+        # non blocking operation
+        self.input_manager.init()
 
         running = True
         in_menu = True
@@ -115,14 +117,11 @@ class Game:
                 object_manager.render(screen)
 
             input_indicator.render(screen)
-
             # game update
             pygame.display.update()
-            # logging.debug("fps: {0}".format(self.clock.get_fps()))
             self.clock.tick(self.fps)
-
-            yield  # yield sequence generator(for concurrency in coop) - "manual" decision for loop - 60 fps - 60 times
-            # for scadular workflow (takted - for reactor)
+            # yield sequence generator(for concurrency in coop)
+            yield
 
         reactor.stop()
 
@@ -130,15 +129,14 @@ class Game:
 def main():
     """
     Starter function
-
     """
     logging.basicConfig(level=logging.DEBUG)
 
     game = Game()
     coop = Cooperator()
-    # for controll of game loop and ws connection -> yield (only for cooperator)
+    # for control of game loop and ws connection -> yield (only for cooperator)
     coop.coiterate(game.start())
-    # Twisted verwendet scadular -> zeitliches Ablauf
+    # uses scheduler
     reactor.run()
 
 

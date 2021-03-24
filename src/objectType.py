@@ -3,8 +3,7 @@ from enum import IntEnum
 
 class GameObjectType(IntEnum):
     """
-    Class from generic enumeration.
-    To define enumerations for game objects
+    Enumerations for game objects
     """
     APPLE = 1
     BANANA = 2

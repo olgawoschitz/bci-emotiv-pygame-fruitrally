@@ -8,7 +8,7 @@ import logging
 
 class InputManager:
     """
-    Class to deal with any game inputs
+    Class to deal with any game inputs (keyboard or BCI)
     """
     queued_inputs = []
     cortex_connection = None
@@ -20,7 +20,7 @@ class InputManager:
 
     def init(self):
         """
-        Function to initialize the connection
+        Function to initialize the connection to cortex API
         """
         self.cortex_connection = CortexClient(UserCredentials.credentials, self)
 
@@ -65,9 +65,9 @@ class InputManager:
 
     def on_loop(self, events):
         """
-        Function for updating moves
+        Function for updating moves of a player
         :param events: pygame.event.get()
-        :return: tuple of the move and the weight of the signal (move and power of the signal 100% for keyboard)
+        :return: tuple of the move and the weight of the signal (for keyboard power of the signal 100%)
         """
         # Cortex data input
         event = self.compute_cortex_event()
